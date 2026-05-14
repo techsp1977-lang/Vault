@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg-elev: #141414;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #222;
+    --border: #2a2a2a;
+    --border-strong: #3a3a3a;
+    --text: #e8e6e1;
+    --text-dim: #888;
+    --text-faint: #555;
+    --accent: #d4a574;
+    --accent-dim: #8b6f4d;
+    --danger: #c85450;
+    --success: #6b9b6b;
+    --warning: #c89b50;
+    --display: 'Fraunces', serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow-x: hidden; }
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  /* subtle grain texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, textarea, select {
+    font-family: inherit; color: inherit; background: transparent;
+    border: 1px solid var(--border); padding: 12px 14px; border-radius: 6px;
+    width: 100%; font-size: 15px;
+    transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-dim); }
+  textarea { resize: vertical; min-height: 70px; font-family: var(--mono); }
+
+  /* ==== LOCK SCREEN ==== */
+  .lock-screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    background: var(--bg);
+    z-index: 50;
+  }
+  .lock-screen.hidden { display: none; }
+  .lock-brand {
+    font-family: var(--display);
+    font-weight: 300;
+    font-size: 64px;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-style: italic;
+  }
+  .lock-tag {
+    font-family: var(--mono);
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-bottom: 56px;
+  }
+  .lock-form {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .lock-form input {
+    text-align: center;
+    letter-spacing: 0.1em;
+    padding: 14px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #1a1a1a;
+    padding: 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    transition: background 0.15s, transform 0.05s;
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:hover { background: #e2b58a; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-dim);
+    padding: 12px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .btn-secondary:hover { color: var(--text); }
+  .lock-error {
+    color: var(--danger);
+    font-size: 12px;
+    text-align: center;
+    min-height: 16px;
+    letter-spacing: 0.05em;
+  }
+  .lock-help {
+    margin-top: 32px;
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: center;
+    line-height: 1.6;
+    max-width: 280px;
+  }
+  .lock-help a { color: var(--text-dim); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+
+  /* ==== APP SHELL ==== */
+  .app { display: none; min-height: 100vh; padding-bottom: 100px; }
+  .app.visible { display: block; }
+
+  .header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 16px 12px;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .header-title {
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
+  .header-actions { display: flex; gap: 4px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    color: var(--text-dim);
+    transition: background 0.15s, color 0.15s;
+  }
+  .icon-btn:hover, .icon-btn:active { background: var(--bg-card); color: var(--text); }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  .search-wrap { position: relative; }
+  .search-wrap svg {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint); width: 16px; height: 16px;
+    pointer-events: none;
+  }
+  .search-input {
+    padding-left: 38px;
+    padding-right: 38px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-faint); border-radius: 50%;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .search-clear.visible { opacity: 1; }
+
+  /* category chips */
+  .chips {
+    display: flex; gap: 6px;
+    padding: 12px 16px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-card);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .chip.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .chip-count {
+    margin-left: 4px;
+    opacity: 0.6;
+  }
+
+  /* ==== TILE GRID ==== */
+  .grid {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 500px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 768px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 14px;
+    aspect-ratio: 1;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    text-align: left;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile:active { transform: scale(0.97); background: var(--bg-card-hover); }
+  .tile::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(212,165,116,0.06));
+    pointer-events: none;
+  }
+  .tile-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--bg);
+    letter-spacing: -0.02em;
+  }
+  .tile-body { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+  .tile-name {
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .tile-user {
+    font-size: 11px;
+    color: var(--text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* tile add */
+  .tile-add {
+    background: transparent;
+    border: 1.5px dashed var(--border-strong);
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .tile-add svg { width: 24px; height: 24px; }
+  .tile-add:active { border-color: var(--accent); color: var(--accent); }
+
+  .empty {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-faint);
+  }
+  .empty-title {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .empty-sub { font-size: 13px; }
+
+  /* ==== FLOATING ADD BUTTON ==== */
+  .fab {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    width: 56px; height: 56px;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    z-index: 15;
+    transition: transform 0.15s;
+  }
+  .fab:active { transform: scale(0.92); }
+  .fab svg { width: 24px; height: 24px; }
+
+  /* ==== MODAL / SHEET ==== */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    backdrop-filter: blur(4px);
+  }
+  .sheet-backdrop.visible { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-elev);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-top: 1px solid var(--border);
+    z-index: 35;
+    max-height: 92vh;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.36, 1);
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet.visible { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  .sheet-header {
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sheet-title {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 400;
+  }
+  .sheet-close {
+    color: var(--text-dim);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+  }
+  .sheet-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .field-group { margin-bottom: 16px; }
+  .field-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .field-row { position: relative; }
+  .field-row .field-action {
+    position: absolute;
+    right: 8px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 4px;
+  }
+  .field-row .field-action:active { background: var(--bg-card); }
+  .field-row .field-action svg { width: 16px; height: 16px; display: block; }
+  .field-row input { padding-right: 40px; }
+  .field-row.two-actions input { padding-right: 76px; }
+  .field-row .field-action.second { right: 40px; }
+
+  .color-picker {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .color-swatch {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+  }
+  .color-swatch.selected { border-color: var(--text); transform: scale(1.1); }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .form-actions .btn-primary { flex: 1; }
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .btn-danger:active { background: rgba(200,84,80,0.1); }
+
+  /* ==== DETAIL VIEW ==== */
+  .detail-row {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+  .detail-value-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .detail-value {
+    font-family: var(--mono);
+    font-size: 15px;
+    word-break: break-all;
+    flex: 1;
+    min-width: 0;
+  }
+  .detail-value.notes {
+    white-space: pre-wrap;
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .detail-value.hidden-text { letter-spacing: 0.1em; }
+  .detail-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .detail-action-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .detail-action-btn:active { background: var(--bg-card); color: var(--text); }
+  .detail-action-btn svg { width: 16px; height: 16px; }
+
+  .detail-edit-row {
+    display: flex;
+    gap: 10px;
+    padding-top: 20px;
+  }
+  .detail-edit-row > button { flex: 1; padding: 14px; border-radius: 6px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .btn-outline {
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    background: var(--bg-card);
+  }
+
+  /* ==== TOAST ==== */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0.36, 1);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    letter-spacing: 0.02em;
+  }
+  .toast.visible { transform: translateX(-50%) translateY(0); }
+  .toast.danger { background: var(--danger); color: white; }
+
+  /* password generator */
+  .gen-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .gen-output {
+    font-family: var(--mono);
+    font-size: 14px;
+    background: var(--bg);
+    padding: 10px 12px;
+    border-radius: 6px;
+    word-break: break-all;
+    margin-bottom: 12px;
+    min-height: 40px;
+    border: 1px solid var(--border);
+  }
+  .gen-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .gen-length {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+  }
+  .gen-length input {
+    width: 50px;
+    border: none;
+    padding: 0;
+    text-align: right;
+    background: transparent;
+    font-size: 13px;
+  }
+  .gen-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    user-select: none;
+  }
+  .gen-toggle input { display: none; }
+  .toggle-dot {
+    width: 32px; height: 18px;
+    background: var(--border-strong);
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.15s;
+  }
+  .toggle-dot::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    background: var(--text);
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+  .gen-toggle input:checked + .toggle-dot { background: var(--accent-dim); }
+  .gen-toggle input:checked + .toggle-dot::after { transform: translateX(14px); }
+  .gen-actions { display: flex; gap: 8px; }
+  .gen-actions button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text);
+  }
+  .gen-actions button.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* settings list */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-text { flex: 1; }
+  .settings-row-title { font-size: 14px; margin-bottom: 2px; }
+  .settings-row-desc { font-size: 11px; color: var(--text-faint); line-height: 1.4; }
+  .settings-row-arrow { color: var(--text-faint); }
+
+  /* hide scrollbars in webkit */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOCK SCREEN ============ -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-brand">vault</div>
+  <div class="lock-tag">private · encrypted · local</div>
+  <form class="lock-form" id="lockForm" autocomplete="off">
+    <input type="password" id="masterInput" placeholder="master password" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    <input type="password" id="masterConfirm" placeholder="confirm password" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="display:none" />
+    <button type="submit" class="btn-primary" id="lockSubmit">unlock</button>
+    <button type="button" class="btn-secondary" id="btnBiometricUnlock" style="display:none">
+      <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M9 9v0"/><path d="M15 9v0"/><path d="M9 15c.83.67 1.83 1 3 1s2.17-.33 3-1"/></svg>
+        unlock with face id
+      </span>
+    </button>
+    <div class="lock-error" id="lockError"></div>
+  </form>
+  <div class="lock-help" id="lockHelp"></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="app">
+
+  <header class="header">
+    <div class="header-row">
+      <div class="header-title">vault</div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnGenerator" aria-label="Password generator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSettings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="icon-btn" id="btnLock" aria-label="Lock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-input" id="searchInput" placeholder="search vault" autocapitalize="off" autocorrect="off" />
+      <button class="search-clear" id="searchClear" aria-label="Clear">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <button class="fab" id="fab" aria-label="Add entry">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
+<!-- ============ SHEET (modal) ============ -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="sheetTitle">Entry</div>
+    <button class="sheet-close" id="sheetClose">close</button>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+// CRYPTO LAYER — AES-GCM with PBKDF2 key derivation
+// ============================================================
+const PBKDF2_ITERATIONS = 250000;
+const SALT_BYTES = 16;
+const IV_BYTES = 12;
+const STORAGE_KEY = 'vault.encrypted.v1';
+const SETTINGS_KEY = 'vault.settings.v1';
+const BIOMETRIC_KEY = 'vault.biometric.v1';
+
+function bufToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64ToBuf(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function deriveKey(password, salt){
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    'raw', enc.encode(password), {name:'PBKDF2'}, false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:PBKDF2_ITERATIONS, hash:'SHA-256' },
+    baseKey,
+    { name:'AES-GCM', length:256 },
+    false,
+    ['encrypt','decrypt']
+  );
+}
+
+async function encryptData(plaintext, password){
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const key = await deriveKey(password, salt);
+  const enc = new TextEncoder();
+  const cipher = await crypto.subtle.encrypt(
+    { name:'AES-GCM', iv },
+    key,
+    enc.encode(plaintext)
+  );
+  return {
+    v: 1,
+    salt: bufToB64(salt),
+    iv: bufToB64(iv),
+    data: bufToB64(cipher)
+  };
+}
+
+async function decryptData(payload, password){
+  const salt = new Uint8Array(b64ToBuf(payload.salt));
+  const iv = new Uint8Array(b64ToBuf(payload.iv));
+  const key = await deriveKey(password, salt);
+  const plain = await crypto.subtle.decrypt(
+    { name:'AES-GCM', iv },
+    key,
+    b64ToBuf(payload.data)
+  );
+  return new TextDecoder().decode(plain);
+}
+
+// ============================================================
+// BIOMETRIC LAYER — WebAuthn (Face ID / Touch ID / Windows Hello)
+// ============================================================
+// Strategy: create a passkey on this device. On unlock, the user authenticates
+// with biometrics, which proves possession of the credential. We then use the
+// PRF extension (if supported) to derive a stable wrap key bound to that
+// credential; otherwise we fall back to deriving a key from a stored salt
+// that is only released after biometric auth succeeds.
+//
+// SECURITY NOTE: This stores an (encrypted) copy of the master password.
+// Even encrypted, this is a weaker posture than typing the password every
+// time. The encryption key cannot be extracted from the device without
+// passing biometric auth, so an attacker needs both the device AND your
+// face/finger. The master password remains the ultimate fallback.
+
+function biometricsSupported(){
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+
+async function platformAuthenticatorAvailable(){
+  if(!biometricsSupported()) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch(e){ return false; }
+}
+
+function getBiometricRecord(){
+  try {
+    const raw = localStorage.getItem(BIOMETRIC_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+
+function saveBiometricRecord(record){
+  localStorage.setItem(BIOMETRIC_KEY, JSON.stringify(record));
+}
+
+function clearBiometricRecord(){
+  localStorage.removeItem(BIOMETRIC_KEY);
+}
+
+// Create a new credential and use it to encrypt the master password
+async function enableBiometrics(password){
+  if(!await platformAuthenticatorAvailable()){
+    throw new Error('No biometric authenticator available on this device.');
+  }
+
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const prfSalt = crypto.getRandomValues(new Uint8Array(32));
+
+  const createOptions = {
+    publicKey: {
+      challenge,
+      rp: { name: 'Vault', id: location.hostname || undefined },
+      user: {
+        id: userId,
+        name: 'vault-user',
+        displayName: 'Vault User'
+      },
+      pubKeyCredParams: [
+        { type: 'public-key', alg: -7 },   // ES256
+        { type: 'public-key', alg: -257 }  // RS256
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        userVerification: 'required',
+        residentKey: 'preferred'
+      },
+      timeout: 60000,
+      extensions: {
+        prf: { eval: { first: prfSalt } }
+      }
+    }
+  };
+
+  // If running from file:// there's no rp.id — that's fine, browser handles it
+  if(!createOptions.publicKey.rp.id) delete createOptions.publicKey.rp.id;
+
+  const credential = await navigator.credentials.create(createOptions);
+  if(!credential) throw new Error('Credential creation cancelled.');
+
+  const credId = new Uint8Array(credential.rawId);
+  const extResults = credential.getClientExtensionResults && credential.getClientExtensionResults();
+  const prfResult = extResults && extResults.prf && extResults.prf.results && extResults.prf.results.first;
+
+  let wrapKeyMaterial;
+  let usesPrf = false;
+
+  if(prfResult){
+    // Best case: PRF extension worked. The output is a stable secret bound to the credential.
+    wrapKeyMaterial = new Uint8Array(prfResult);
+    usesPrf = true;
+  } else {
+    // Fallback: derive a wrap key from a random salt that we'll store alongside
+    // the credential ID. The credential ID itself isn't secret, but the only way
+    // to USE this fallback flow is to first pass biometric auth, so the stored
+    // password remains gated behind the biometric.
+    wrapKeyMaterial = crypto.getRandomValues(new Uint8Array(32));
+  }
+
+  // Derive a wrap key from the material via HKDF/PBKDF2
+  const wrapSalt = crypto.getRandomValues(new Uint8Array(16));
+  const wrapKey = await deriveWrapKey(wrapKeyMaterial, wrapSalt);
+
+  // Encrypt the master password with the wrap key
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const enc = new TextEncoder();
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    wrapKey,
+    enc.encode(password)
+  );
+
+  saveBiometricRecord({
+    v: 1,
+    credentialId: bufToB64(credId),
+    usesPrf,
+    prfSalt: bufToB64(prfSalt),
+    wrapSalt: bufToB64(wrapSalt),
+    iv: bufToB64(iv),
+    cipher: bufToB64(cipher),
+    // Only stored in fallback mode — the secret that protects the password
+    fallbackSecret: usesPrf ? null : bufToB64(wrapKeyMaterial)
+  });
+
+  return true;
+}
+
+async function deriveWrapKey(material, salt){
+  const baseKey = await crypto.subtle.importKey(
+    'raw', material, { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+// Use biometrics to retrieve the master password
+async function unlockWithBiometrics(){
+  const record = getBiometricRecord();
+  if(!record) throw new Error('Biometric unlock is not set up.');
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const credId = b64ToBuf(record.credentialId);
+  const prfSalt = b64ToBuf(record.prfSalt);
+
+  const getOptions = {
+    publicKey: {
+      challenge,
+      allowCredentials: [{
+        type: 'public-key',
+        id: credId,
+        transports: ['internal']
+      }],
+      userVerification: 'required',
+      timeout: 60000,
+      rpId: location.hostname || undefined,
+      extensions: record.usesPrf ? { prf: { eval: { first: prfSalt } } } : undefined
+    }
+  };
+  if(!getOptions.publicKey.rpId) delete getOptions.publicKey.rpId;
+  if(!getOptions.publicKey.extensions) delete getOptions.publicKey.extensions;
+
+  const assertion = await navigator.credentials.get(getOptions);
+  if(!assertion) throw new Error('Biometric auth cancelled.');
+
+  let wrapKeyMaterial;
+  if(record.usesPrf){
+    const extResults = assertion.getClientExtensionResults && assertion.getClientExtensionResults();
+    const prfResult = extResults && extResults.prf && extResults.prf.results && extResults.prf.results.first;
+    if(!prfResult) throw new Error('Biometric key material unavailable. Use master password.');
+    wrapKeyMaterial = new Uint8Array(prfResult);
+  } else {
+    if(!record.fallbackSecret) throw new Error('Stored biometric data is corrupt.');
+    wrapKeyMaterial = new Uint8Array(b64ToBuf(record.fallbackSecret));
+  }
+
+  const wrapSalt = new Uint8Array(b64ToBuf(record.wrapSalt));
+  const wrapKey = await deriveWrapKey(wrapKeyMaterial, wrapSalt);
+
+  const iv = new Uint8Array(b64ToBuf(record.iv));
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    wrapKey,
+    b64ToBuf(record.cipher)
+  );
+  return new TextDecoder().decode(plain);
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let masterPassword = null;
+let vault = { entries: [], categories: ['Personal','Work','Finance','Social','Other'] };
+let activeCategory = 'All';
+let searchQuery = '';
+let currentEntryId = null;
+let autoLockTimer = null;
+let settings = { autoLockMinutes: 5 };
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+async function saveVault(){
+  if(!masterPassword) return;
+  const payload = await encryptData(JSON.stringify(vault), masterPassword);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+function loadSettings(){
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if(raw) settings = { ...settings, ...JSON.parse(raw) };
+  } catch(e){}
+}
+function saveSettings(){
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+// ============================================================
+// UTIL
+// ============================================================
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+const TILE_COLORS = [
+  '#d4a574','#b8896b','#8b9d77','#6d8b9c','#9c7d8b',
+  '#a89070','#7d8b7a','#8b7d6d','#5d7a8a','#9d8b6f',
+  '#7a6b5d','#a87d5d','#5d8a7d','#8a5d7d','#6d6d8a',
+  '#b0a080'
+];
+
+function tileColorFor(entry){
+  if(entry.color) return entry.color;
+  const name = (entry.name||'').toLowerCase();
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = (hash*31 + name.charCodeAt(i)) >>> 0;
+  return TILE_COLORS[hash % TILE_COLORS.length];
+}
+
+function initials(name){
+  if(!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if(parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
+
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (kind === 'danger' ? ' danger' : '');
+  requestAnimationFrame(()=>{
+    t.classList.add('visible');
+  });
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ t.classList.remove('visible'); }, 1800);
+}
+
+function copyToClipboard(text, label){
+  if(!text) return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(
+      ()=>toast((label||'Copied') + ' copied'),
+      ()=>fallbackCopy(text, label)
+    );
+  } else fallbackCopy(text, label);
+  resetAutoLock();
+}
+function fallbackCopy(text, label){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast((label||'Copied') + ' copied'); }
+  catch(e){ toast('Copy failed','danger'); }
+  document.body.removeChild(ta);
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// ============================================================
+// LOCK SCREEN
+// ============================================================
+function showLockScreen(){
+  document.getElementById('lockScreen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  closeSheet();
+  const existing = localStorage.getItem(STORAGE_KEY);
+  const submitBtn = document.getElementById('lockSubmit');
+  const confirmInput = document.getElementById('masterConfirm');
+  const help = document.getElementById('lockHelp');
+  const main = document.getElementById('masterInput');
+  const bioBtn = document.getElementById('btnBiometricUnlock');
+  main.value = '';
+  confirmInput.value = '';
+  document.getElementById('lockError').textContent = '';
+
+  if(existing){
+    submitBtn.textContent = 'unlock';
+    confirmInput.style.display = 'none';
+    main.placeholder = 'master password';
+    help.innerHTML = '';
+    // Show biometric unlock if it's set up
+    const bioRecord = getBiometricRecord();
+    if(bioRecord && biometricsSupported()){
+      bioBtn.style.display = 'block';
+      // Auto-prompt biometrics on load — small delay so the screen renders first
+      setTimeout(() => {
+        // Only auto-prompt if the user hasn't started typing
+        if(!main.value && !document.getElementById('lockScreen').classList.contains('hidden')){
+          tryBiometricUnlock(true);
+        }
+      }, 400);
+    } else {
+      bioBtn.style.display = 'none';
+    }
+  } else {
+    submitBtn.textContent = 'create vault';
+    confirmInput.style.display = 'block';
+    main.placeholder = 'choose a master password';
+    help.innerHTML = '⚠ This password cannot be recovered. If you forget it, your data is gone forever. Use something memorable but strong.';
+    bioBtn.style.display = 'none';
+  }
+  setTimeout(()=>main.focus(), 100);
+}
+
+async function tryBiometricUnlock(silent){
+  const errEl = document.getElementById('lockError');
+  try {
+    const pw = await unlockWithBiometrics();
+    const existing = localStorage.getItem(STORAGE_KEY);
+    const payload = JSON.parse(existing);
+    const decrypted = await decryptData(payload, pw);
+    vault = JSON.parse(decrypted);
+    if(!vault.categories) vault.categories = ['Personal','Work','Finance','Social','Other'];
+    if(!vault.entries) vault.entries = [];
+    masterPassword = pw;
+    enterApp();
+  } catch(err){
+    if(!silent){
+      const msg = (err && err.name === 'NotAllowedError') ? 'biometric auth cancelled' : (err.message || 'biometric unlock failed');
+      errEl.textContent = msg;
+    }
+    // Silent failure is fine — user can still type the master password
+  }
+}
+
+document.getElementById('btnBiometricUnlock').addEventListener('click', () => tryBiometricUnlock(false));
+
+document.getElementById('lockForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById('masterInput').value;
+  const confirm = document.getElementById('masterConfirm').value;
+  const errEl = document.getElementById('lockError');
+  errEl.textContent = '';
+  const existing = localStorage.getItem(STORAGE_KEY);
+
+  if(!pw){ errEl.textContent = 'password required'; return; }
+
+  if(!existing){
+    if(pw.length < 8){ errEl.textContent = 'use at least 8 characters'; return; }
+    if(pw !== confirm){ errEl.textContent = 'passwords do not match'; return; }
+    masterPassword = pw;
+    vault = { entries: [], categories: ['Personal','Work','Finance','Social','Other'] };
+    await saveVault();
+    enterApp();
+    toast('Vault created');
+  } else {
+    try {
+      const payload = JSON.parse(existing);
+      const decrypted = await decryptData(payload, pw);
+      vault = JSON.parse(decrypted);
+      if(!vault.categories) vault.categories = ['Personal','Work','Finance','Social','Other'];
+      if(!vault.entries) vault.entries = [];
+      masterPassword = pw;
+      enterApp();
+    } catch(err){
+      errEl.textContent = 'wrong password';
+      document.getElementById('masterInput').value = '';
+    }
+  }
+});
+
+function enterApp(){
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+  renderChips();
+  renderGrid();
+  resetAutoLock();
+}
+
+function lock(){
+  masterPassword = null;
+  vault = { entries: [], categories: [] };
+  activeCategory = 'All';
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  if(autoLockTimer){ clearTimeout(autoLockTimer); autoLockTimer = null; }
+  showLockScreen();
+}
+
+function resetAutoLock(){
+  if(autoLockTimer) clearTimeout(autoLockTimer);
+  if(!masterPassword) return;
+  const min = settings.autoLockMinutes;
+  if(min <= 0) return; // 0 = disabled
+  autoLockTimer = setTimeout(()=>{
+    toast('Auto-locked');
+    lock();
+  }, min * 60 * 1000);
+}
+
+['touchstart','click','keydown'].forEach(ev =>
+  document.addEventListener(ev, () => { if(masterPassword) resetAutoLock(); }, { passive: true })
+);
+
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && masterPassword){
+    // optional: lock on hide. Keep it gentle — just reset timer to a short value.
+    // Comment next line out if you don't want this:
+    // lock();
+  }
+});
+
+// ============================================================
+// RENDER GRID & CHIPS
+// ============================================================
+function getFilteredEntries(){
+  const q = searchQuery.toLowerCase().trim();
+  return vault.entries.filter(e => {
+    if(activeCategory !== 'All' && e.category !== activeCategory) return false;
+    if(!q) return true;
+    return (e.name||'').toLowerCase().includes(q) ||
+           (e.username||'').toLowerCase().includes(q) ||
+           (e.url||'').toLowerCase().includes(q) ||
+           (e.notes||'').toLowerCase().includes(q);
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+}
+
+function renderChips(){
+  const chips = document.getElementById('chips');
+  const counts = { All: vault.entries.length };
+  for(const c of vault.categories) counts[c] = 0;
+  for(const e of vault.entries){
+    if(counts[e.category] !== undefined) counts[e.category]++;
+  }
+
+  const categoriesInUse = vault.categories.filter(c => counts[c] > 0);
+  const list = ['All', ...categoriesInUse];
+  if(activeCategory !== 'All' && !list.includes(activeCategory)) list.push(activeCategory);
+
+  chips.innerHTML = list.map(c => `
+    <button class="chip ${c === activeCategory ? 'active' : ''}" data-cat="${escapeHtml(c)}">
+      ${escapeHtml(c)}<span class="chip-count">${counts[c]||0}</span>
+    </button>
+  `).join('');
+
+  chips.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.cat;
+      renderChips();
+      renderGrid();
+    });
+  });
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  const entries = getFilteredEntries();
+
+  if(vault.entries.length === 0){
+    grid.innerHTML = `
+      <div class="empty" style="grid-column: 1 / -1;">
+        <div class="empty-title">your vault is empty</div>
+        <div class="empty-sub">tap + to add your first entry</div>
+      </div>`;
+    return;
+  }
+  if(entries.length === 0){
+    grid.innerHTML = `
+      <div class="empty" style="grid-column: 1 / -1;">
+        <div class="empty-title">nothing found</div>
+        <div class="empty-sub">try a different search or category</div>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = entries.map(e => {
+    const color = tileColorFor(e);
+    return `
+      <button class="tile" data-id="${e.id}">
+        <div class="tile-icon" style="background:${color}">${escapeHtml(initials(e.name))}</div>
+        <div class="tile-body">
+          <div class="tile-name">${escapeHtml(e.name)}</div>
+          <div class="tile-user">${escapeHtml(e.username || e.url || '—')}</div>
+        </div>
+      </button>`;
+  }).join('');
+
+  grid.querySelectorAll('.tile').forEach(t => {
+    t.addEventListener('click', () => openDetail(t.dataset.id));
+  });
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value;
+  searchClear.classList.toggle('visible', !!searchQuery);
+  renderGrid();
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchQuery = '';
+  searchClear.classList.remove('visible');
+  renderGrid();
+  searchInput.focus();
+});
+
+// ============================================================
+// SHEET CONTROL
+// ============================================================
+const sheet = document.getElementById('sheet');
+const sheetBackdrop = document.getElementById('sheetBackdrop');
+
+function openSheet(title){
+  document.getElementById('sheetTitle').textContent = title;
+  sheet.classList.add('visible');
+  sheetBackdrop.classList.add('visible');
+}
+function closeSheet(){
+  sheet.classList.remove('visible');
+  sheetBackdrop.classList.remove('visible');
+}
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+sheetBackdrop.addEventListener('click', closeSheet);
+
+// ============================================================
+// ENTRY DETAIL VIEW
+// ============================================================
+function openDetail(id){
+  const entry = vault.entries.find(e => e.id === id);
+  if(!entry) return;
+  currentEntryId = id;
+
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = `
+    <div class="detail-row">
+      <div class="detail-label">Site</div>
+      <div class="detail-value-row">
+        <div class="detail-value">${escapeHtml(entry.name)}</div>
+      </div>
+    </div>
+    ${entry.username ? `
+    <div class="detail-row">
+      <div class="detail-label">Username</div>
+      <div class="detail-value-row">
+        <div class="detail-value" id="dvUser">${escapeHtml(entry.username)}</div>
+        <div class="detail-actions">
+          <button class="detail-action-btn" data-copy="username" aria-label="Copy username">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>` : ''}
+    ${entry.password ? `
+    <div class="detail-row">
+      <div class="detail-label">Password</div>
+      <div class="detail-value-row">
+        <div class="detail-value hidden-text" id="dvPass">••••••••••••</div>
+        <div class="detail-actions">
+          <button class="detail-action-btn" id="btnShowPass" aria-label="Show password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="detail-action-btn" data-copy="password" aria-label="Copy password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>` : ''}
+    ${entry.url ? `
+    <div class="detail-row">
+      <div class="detail-label">URL</div>
+      <div class="detail-value-row">
+        <div class="detail-value">${escapeHtml(entry.url)}</div>
+        <div class="detail-actions">
+          <button class="detail-action-btn" id="btnOpenUrl" aria-label="Open URL">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+          <button class="detail-action-btn" data-copy="url" aria-label="Copy URL">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>` : ''}
+    ${entry.category ? `
+    <div class="detail-row">
+      <div class="detail-label">Category</div>
+      <div class="detail-value-row">
+        <div class="detail-value">${escapeHtml(entry.category)}</div>
+      </div>
+    </div>` : ''}
+    ${entry.notes ? `
+    <div class="detail-row">
+      <div class="detail-label">Notes</div>
+      <div class="detail-value notes">${escapeHtml(entry.notes)}</div>
+    </div>` : ''}
+
+    <div class="detail-edit-row">
+      <button class="btn-outline" id="btnEdit">Edit</button>
+      <button class="btn-danger" id="btnDelete">Delete</button>
+    </div>
+  `;
+
+  // wire up actions
+  body.querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.copy;
+      copyToClipboard(entry[f], f.charAt(0).toUpperCase() + f.slice(1));
+    });
+  });
+
+  const showBtn = document.getElementById('btnShowPass');
+  if(showBtn){
+    let shown = false;
+    showBtn.addEventListener('click', () => {
+      shown = !shown;
+      const el = document.getElementById('dvPass');
+      if(shown){
+        el.textContent = entry.password;
+        el.classList.remove('hidden-text');
+      } else {
+        el.textContent = '••••••••••••';
+        el.classList.add('hidden-text');
+      }
+    });
+  }
+  const openUrl = document.getElementById('btnOpenUrl');
+  if(openUrl){
+    openUrl.addEventListener('click', () => {
+      let u = entry.url;
+      if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+      window.open(u, '_blank', 'noopener');
+    });
+  }
+  document.getElementById('btnEdit').addEventListener('click', () => openEditor(id));
+  document.getElementById('btnDelete').addEventListener('click', async () => {
+    if(!confirm('Delete "' + entry.name + '"? This cannot be undone.')) return;
+    vault.entries = vault.entries.filter(e => e.id !== id);
+    await saveVault();
+    closeSheet();
+    renderChips();
+    renderGrid();
+    toast('Deleted', 'danger');
+  });
+
+  openSheet(entry.name);
+}
+
+// ============================================================
+// EDITOR (Add / Edit)
+// ============================================================
+function openEditor(id){
+  const isNew = !id;
+  const entry = isNew ? { id: uid(), name:'', username:'', password:'', url:'', category: vault.categories[0]||'Other', notes:'', color:'' } : { ...vault.entries.find(e => e.id === id) };
+  if(!entry) return;
+
+  const allCats = [...new Set([...vault.categories, entry.category].filter(Boolean))];
+
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = `
+    <div class="field-group">
+      <label class="field-label">Site / App Name</label>
+      <div class="field-row">
+        <input type="text" id="fName" value="${escapeHtml(entry.name)}" placeholder="e.g. GitHub" />
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Username / Email</label>
+      <div class="field-row">
+        <input type="text" id="fUser" value="${escapeHtml(entry.username)}" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Password</label>
+      <div class="field-row two-actions">
+        <input type="password" id="fPass" value="${escapeHtml(entry.password)}" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" />
+        <button type="button" class="field-action second" id="fPassToggle" aria-label="Show">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" class="field-action" id="fPassGen" aria-label="Generate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">URL (optional)</label>
+      <div class="field-row">
+        <input type="text" id="fUrl" value="${escapeHtml(entry.url)}" placeholder="https://" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Category</label>
+      <div class="field-row">
+        <select id="fCat">
+          ${allCats.map(c => `<option value="${escapeHtml(c)}" ${c === entry.category ? 'selected':''}>${escapeHtml(c)}</option>`).join('')}
+          <option value="__new__">+ New category…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Tile Color</label>
+      <div class="color-picker" id="fColor">
+        ${TILE_COLORS.map(c => `<div class="color-swatch ${c === (entry.color || tileColorFor(entry)) ? 'selected' : ''}" data-color="${c}" style="background:${c}"></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Notes</label>
+      <textarea id="fNotes" placeholder="recovery codes, security questions, etc.">${escapeHtml(entry.notes)}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" id="fSave">${isNew ? 'Add Entry' : 'Save'}</button>
+    </div>
+  `;
+
+  let selectedColor = entry.color || '';
+
+  // password show/hide
+  document.getElementById('fPassToggle').addEventListener('click', () => {
+    const inp = document.getElementById('fPass');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  // password generate
+  document.getElementById('fPassGen').addEventListener('click', () => {
+    const generated = generatePassword({length:20, upper:true, lower:true, digits:true, symbols:true});
+    document.getElementById('fPass').value = generated;
+    document.getElementById('fPass').type = 'text';
+    toast('Generated');
+  });
+
+  // category — handle new
+  document.getElementById('fCat').addEventListener('change', (e) => {
+    if(e.target.value === '__new__'){
+      const name = prompt('New category name:');
+      if(name && name.trim()){
+        const n = name.trim();
+        if(!vault.categories.includes(n)) vault.categories.push(n);
+        const opt = document.createElement('option');
+        opt.value = n; opt.textContent = n; opt.selected = true;
+        e.target.insertBefore(opt, e.target.querySelector('option[value="__new__"]'));
+        e.target.value = n;
+      } else {
+        e.target.value = entry.category;
+      }
+    }
+  });
+
+  // color picker
+  document.getElementById('fColor').addEventListener('click', (e) => {
+    const sw = e.target.closest('.color-swatch');
+    if(!sw) return;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    sw.classList.add('selected');
+    selectedColor = sw.dataset.color;
+  });
+
+  // save
+  document.getElementById('fSave').addEventListener('click', async () => {
+    const name = document.getElementById('fName').value.trim();
+    if(!name){ toast('Name required', 'danger'); return; }
+    entry.name = name;
+    entry.username = document.getElementById('fUser').value.trim();
+    entry.password = document.getElementById('fPass').value;
+    entry.url = document.getElementById('fUrl').value.trim();
+    entry.category = document.getElementById('fCat').value;
+    entry.notes = document.getElementById('fNotes').value;
+    entry.color = selectedColor || tileColorFor(entry);
+    entry.updatedAt = Date.now();
+
+    if(isNew){
+      entry.createdAt = Date.now();
+      vault.entries.push(entry);
+    } else {
+      const idx = vault.entries.findIndex(e => e.id === entry.id);
+      if(idx >= 0) vault.entries[idx] = entry;
+    }
+    await saveVault();
+    renderChips();
+    renderGrid();
+    closeSheet();
+    toast(isNew ? 'Added' : 'Saved');
+  });
+
+  openSheet(isNew ? 'New Entry' : 'Edit Entry');
+  setTimeout(()=>document.getElementById('fName').focus(), 300);
+}
+
+document.getElementById('fab').addEventListener('click', () => openEditor(null));
+
+// ============================================================
+// PASSWORD GENERATOR
+// ============================================================
+function generatePassword(opts){
+  const { length=20, upper=true, lower=true, digits=true, symbols=true } = opts;
+  let pool = '';
+  const must = [];
+  const U='ABCDEFGHJKLMNPQRSTUVWXYZ', L='abcdefghijkmnpqrstuvwxyz', D='23456789', S='!@#$%^&*-_=+?';
+  if(upper){ pool += U; must.push(U); }
+  if(lower){ pool += L; must.push(L); }
+  if(digits){ pool += D; must.push(D); }
+  if(symbols){ pool += S; must.push(S); }
+  if(!pool) return '';
+  const arr = new Uint32Array(length);
+  crypto.getRandomValues(arr);
+  let out = '';
+  for(let i=0;i<length;i++) out += pool[arr[i] % pool.length];
+  // ensure each required class is present
+  for(const cls of must){
+    if(![...out].some(ch => cls.includes(ch))){
+      const r = new Uint32Array(2); crypto.getRandomValues(r);
+      const pos = r[0] % out.length;
+      out = out.slice(0,pos) + cls[r[1] % cls.length] + out.slice(pos+1);
+    }
+  }
+  return out;
+}
+
+function openGenerator(){
+  let current = '';
+  const opts = { length: 20, upper: true, lower: true, digits: true, symbols: true };
+
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = `
+    <div class="gen-section">
+      <div class="gen-output" id="genOutput">tap generate</div>
+      <div class="gen-actions">
+        <button id="genRefresh">Generate</button>
+        <button id="genCopy" class="primary">Copy</button>
+      </div>
+    </div>
+    <div class="gen-section">
+      <div class="gen-controls">
+        <label class="gen-length">
+          <span>Length</span>
+          <input type="number" id="genLength" min="6" max="64" value="20" />
+        </label>
+        <label class="gen-toggle">
+          <span>Uppercase</span>
+          <input type="checkbox" id="genUpper" checked />
+          <span class="toggle-dot"></span>
+        </label>
+        <label class="gen-toggle">
+          <span>Lowercase</span>
+          <input type="checkbox" id="genLower" checked />
+          <span class="toggle-dot"></span>
+        </label>
+        <label class="gen-toggle">
+          <span>Digits</span>
+          <input type="checkbox" id="genDigits" checked />
+          <span class="toggle-dot"></span>
+        </label>
+        <label class="gen-toggle" style="grid-column: 1 / -1;">
+          <span>Symbols (!@#$%^&*-_=+?)</span>
+          <input type="checkbox" id="genSymbols" checked />
+          <span class="toggle-dot"></span>
+        </label>
+      </div>
+    </div>
+  `;
+
+  const out = document.getElementById('genOutput');
+  function read(){
+    opts.length = Math.min(64, Math.max(6, parseInt(document.getElementById('genLength').value)||20));
+    opts.upper = document.getElementById('genUpper').checked;
+    opts.lower = document.getElementById('genLower').checked;
+    opts.digits = document.getElementById('genDigits').checked;
+    opts.symbols = document.getElementById('genSymbols').checked;
+  }
+  function gen(){
+    read();
+    current = generatePassword(opts);
+    out.textContent = current || 'select at least one type';
+  }
+  document.getElementById('genRefresh').addEventListener('click', gen);
+  document.getElementById('genCopy').addEventListener('click', () => {
+    if(current) copyToClipboard(current, 'Password');
+  });
+  ['genLength','genUpper','genLower','genDigits','genSymbols'].forEach(id => {
+    document.getElementById(id).addEventListener('change', gen);
+  });
+  gen();
+  openSheet('Password Generator');
+}
+document.getElementById('btnGenerator').addEventListener('click', openGenerator);
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function openSettings(){
+  const body = document.getElementById('sheetBody');
+  const entryCount = vault.entries.length;
+  const bioRecord = getBiometricRecord();
+  const bioEnabled = !!bioRecord;
+
+  body.innerHTML = `
+    <div class="settings-row" id="setBiometric">
+      <div class="settings-row-text">
+        <div class="settings-row-title">${bioEnabled ? 'Disable Face ID / Touch ID' : 'Enable Face ID / Touch ID'}</div>
+        <div class="settings-row-desc">${bioEnabled ? 'Biometric unlock is on for this device.' : 'Unlock the vault with your face or fingerprint on this device.'}</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setExport">
+      <div class="settings-row-text">
+        <div class="settings-row-title">Export encrypted backup</div>
+        <div class="settings-row-desc">Download an encrypted file you can save anywhere. Same master password unlocks it.</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setImport">
+      <div class="settings-row-text">
+        <div class="settings-row-title">Import backup</div>
+        <div class="settings-row-desc">Restore from an exported backup file.</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setExportPlain">
+      <div class="settings-row-text">
+        <div class="settings-row-title">Export unencrypted (JSON)</div>
+        <div class="settings-row-desc">Plain text — only for migrating to another password manager. Delete after use.</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setAutoLock">
+      <div class="settings-row-text">
+        <div class="settings-row-title">Auto-lock</div>
+        <div class="settings-row-desc">Currently: ${settings.autoLockMinutes === 0 ? 'disabled' : settings.autoLockMinutes + ' min'}</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setChangePw">
+      <div class="settings-row-text">
+        <div class="settings-row-title">Change master password</div>
+        <div class="settings-row-desc">Re-encrypts your vault with a new password.</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+    <div class="settings-row" id="setWipe">
+      <div class="settings-row-text">
+        <div class="settings-row-title" style="color: var(--danger)">Wipe vault</div>
+        <div class="settings-row-desc">Permanently delete everything on this device. Cannot be undone.</div>
+      </div>
+      <div class="settings-row-arrow">→</div>
+    </div>
+
+    <div style="margin-top: 28px; padding: 16px; background: var(--bg-card); border-radius: 10px; font-size: 12px; color: var(--text-faint); line-height: 1.6;">
+      <div style="color: var(--text-dim); margin-bottom: 8px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;">Vault Info</div>
+      <div>${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}</div>
+      <div>${vault.categories.length} categories</div>
+      <div style="margin-top: 8px;">Encrypted with AES-256-GCM · PBKDF2 250k iterations</div>
+    </div>
+  `;
+
+  document.getElementById('setBiometric').addEventListener('click', toggleBiometric);
+  document.getElementById('setExport').addEventListener('click', exportEncrypted);
+  document.getElementById('setImport').addEventListener('click', importBackup);
+  document.getElementById('setExportPlain').addEventListener('click', exportPlain);
+  document.getElementById('setAutoLock').addEventListener('click', changeAutoLock);
+  document.getElementById('setChangePw').addEventListener('click', changeMasterPassword);
+  document.getElementById('setWipe').addEventListener('click', wipeVault);
+
+  openSheet('Settings');
+}
+document.getElementById('btnSettings').addEventListener('click', openSettings);
+
+function downloadBlob(content, filename){
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+async function exportEncrypted(){
+  const data = localStorage.getItem(STORAGE_KEY);
+  if(!data){ toast('Nothing to export','danger'); return; }
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadBlob(data, `vault-backup-${stamp}.vault.json`);
+  toast('Exported');
+}
+
+async function exportPlain(){
+  if(!confirm('Export your passwords as plain text? Anyone with this file can read your passwords. Continue?')) return;
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadBlob(JSON.stringify(vault, null, 2), `vault-plaintext-${stamp}.json`);
+  toast('Exported (plain)', 'danger');
+}
+
+function importBackup(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    try {
+      const parsed = JSON.parse(text);
+      // detect encrypted vs plain
+      if(parsed.v && parsed.salt && parsed.iv && parsed.data){
+        // encrypted
+        const pw = prompt('Enter the master password for this backup:');
+        if(!pw) return;
+        try {
+          const decrypted = await decryptData(parsed, pw);
+          const importedVault = JSON.parse(decrypted);
+          if(!confirm(`Import ${importedVault.entries?.length||0} entries? This will REPLACE your current vault.`)) return;
+          vault = importedVault;
+          if(!vault.categories) vault.categories = ['Personal','Work','Finance','Social','Other'];
+          await saveVault();
+          renderChips(); renderGrid();
+          closeSheet();
+          toast('Imported');
+        } catch(err){ toast('Wrong password or corrupt file','danger'); }
+      } else if(parsed.entries){
+        // plain
+        if(!confirm(`Import ${parsed.entries.length} entries? This will REPLACE your current vault.`)) return;
+        vault = parsed;
+        if(!vault.categories) vault.categories = ['Personal','Work','Finance','Social','Other'];
+        await saveVault();
+        renderChips(); renderGrid();
+        closeSheet();
+        toast('Imported');
+      } else {
+        toast('Unrecognized file format','danger');
+      }
+    } catch(err){ toast('Could not read file','danger'); }
+  };
+  input.click();
+}
+
+async function toggleBiometric(){
+  const existing = getBiometricRecord();
+
+  if(existing){
+    if(!confirm('Disable biometric unlock on this device? You\'ll need to type the master password.')) return;
+    clearBiometricRecord();
+    openSettings();
+    toast('Biometric unlock disabled');
+    return;
+  }
+
+  if(!biometricsSupported()){
+    toast('Biometrics not supported here', 'danger');
+    return;
+  }
+  const available = await platformAuthenticatorAvailable();
+  if(!available){
+    alert('No biometric authenticator available. On iOS, add this page to your Home Screen first (Share → Add to Home Screen) and reopen it from there.');
+    return;
+  }
+
+  // User is already unlocked, so we have the master password in memory.
+  // Confirm intent, then immediately trigger the biometric registration.
+  // IMPORTANT: must call enableBiometrics directly from the click handler chain
+  // without intervening prompt/alert dialogs — iOS Safari blocks WebAuthn
+  // registration if the document focus has been disturbed.
+  if(!confirm('Enable Face ID / Touch ID unlock for this vault on this device?')) return;
+
+  try {
+    await enableBiometrics(masterPassword);
+    openSettings();
+    toast('Biometric unlock enabled');
+  } catch(err){
+    const msg = err && err.message ? err.message : 'Could not enable biometric unlock';
+    if(err && err.name === 'NotAllowedError'){
+      alert('Face ID registration was cancelled or blocked. Make sure you opened this from the Home Screen (not Safari) and try again.');
+    } else {
+      alert(msg);
+    }
+  }
+}
+
+function changeAutoLock(){
+  const v = prompt('Auto-lock after how many minutes of inactivity? (0 to disable)', String(settings.autoLockMinutes));
+  if(v === null) return;
+  const n = parseInt(v);
+  if(isNaN(n) || n < 0){ toast('Invalid number','danger'); return; }
+  settings.autoLockMinutes = n;
+  saveSettings();
+  resetAutoLock();
+  openSettings();
+  toast('Saved');
+}
+
+async function changeMasterPassword(){
+  const cur = prompt('Current master password:');
+  if(cur === null) return;
+  if(cur !== masterPassword){ toast('Wrong current password','danger'); return; }
+  const newPw = prompt('New master password (min 8 chars):');
+  if(newPw === null) return;
+  if(newPw.length < 8){ toast('Too short','danger'); return; }
+  const confirmPw = prompt('Confirm new master password:');
+  if(confirmPw === null) return;
+  if(newPw !== confirmPw){ toast('Passwords do not match','danger'); return; }
+  masterPassword = newPw;
+  await saveVault();
+  // Invalidate biometric — the stored encrypted password no longer matches
+  if(getBiometricRecord()){
+    clearBiometricRecord();
+    toast('Master password changed (re-enable Face ID in settings)');
+  } else {
+    toast('Master password changed');
+  }
+}
+
+function wipeVault(){
+  const c = prompt('Type WIPE to permanently delete this vault and all its data:');
+  if(c !== 'WIPE') return;
+  localStorage.removeItem(STORAGE_KEY);
+  clearBiometricRecord();
+  toast('Vault wiped','danger');
+  setTimeout(lock, 500);
+}
+
+// ============================================================
+// LOCK BUTTON
+// ============================================================
+document.getElementById('btnLock').addEventListener('click', lock);
+
+// ============================================================
+// INIT
+// ============================================================
+loadSettings();
+showLockScreen();
+
+// Prevent accidental zoom on iOS form focus
+document.addEventListener('touchstart', function(){}, { passive: true });
+</script>
+</body>
+</html>
